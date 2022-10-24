@@ -6,9 +6,9 @@
 # 获取高清分辨率或者一些需要大会员才能解锁的分辨率时，需要本人账号登陆后拿到cookie，才能下载
 # example:
 
-# python3 bilibili_video_download_cli.py --url "<链接>" --type "flv" --outputdir /home/user/video/
-# python3 bilibili_video_download_cli.py --url "<链接>" --type "flv" --outputdir /home/user/video/ --cookiefile ./mycookie.txt
-# python3 bilibili_video_download_cli.py --urlfile ./urls.txt --type "flv" --outputdir /home/user/video/ --cookiefile ./mycookie.txt
+# python3 spider.py --url "<链接>" --type "flv" --outputdir /home/user/video/
+# python3 spider.py --url "<链接>" --type "flv" --outputdir /home/user/video/ --cookiefile ./mycookie.txt
+# python3 spider.py --urlfile ./urls.txt --type "flv" --outputdir /home/user/video/ --cookiefile ./mycookie.txt
 # 需要将cookie写入mycookie.txt中，如果不指定cookie，一般只能下载360p
 # urls.txt 中，每个链接地址占用一行
 
