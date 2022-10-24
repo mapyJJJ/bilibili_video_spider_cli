@@ -79,7 +79,7 @@ class Config:
         self.rest_download_time = 3
 
         # player_info_api
-        self.player_info_api = "https://api.bilibili.com/x/player/playurl?avid=%s&cid=%s&qn=%s&fnver=0&fnval=0&fourk=1&ep_id=&type=%s&otype=json"
+        self.player_info_api = "https://api.bilibili.com/x/player/playurl?avid=%s&cid=%s&qn=%s&fnver=0&fnval=%s&fourk=1&ep_id=&type=%s&otype=json"
 
         # get aid&cid api
         self.get_video_id_api = "https://api.bilibili.com/pgc/view/web/season"
@@ -234,7 +234,9 @@ class Spider(RequestMixin):
         return (0, 0)
 
     @HandleUnExceptError
-    def parse_player_info_get_video_urls(self, info_api: str, qn: int) -> List[str]:
+    def parse_player_info_get_video_urls(
+        self, page_url: str, info_api: str, qn: int
+    ) -> List[str]:
         """解析视频详情api，获取player_url
         包含 主要地址 和 几个备用的cdn地址
         """
@@ -351,8 +353,10 @@ class Spider(RequestMixin):
         self.config.display_success_download_log(file_path)
         return
 
-    def gen_player_info_api(self, avid, cid, qn: int, _type: Literal["flv", "mp4"]):
-        return str(config.player_info_api % (avid, cid, qn, _type))
+    def gen_player_info_api(
+        self, avid, cid, qn: int, _type: Literal["flv", "mp4"], fnval: int = 0
+    ):
+        return str(config.player_info_api % (avid, cid, qn, fnval, _type))
 
     def classify_page_url(self, url) -> Tuple[bool, str]:
         if ep_video := re.match(r"^https?://www.bilibili.com/\S+/ep(\d+)$", url):
@@ -375,6 +379,23 @@ def main():
         rich.print("[yellow]【warning】url 和 urlfile参数不能都为空!")
         parse.print_help()
         sys.exit(0)
+
+    fnval = 0
+
+    def _check_parse_headers():
+        nonlocal fnval
+        if cookie := config.parse_headers.get("cookie"):
+            # cookie中包含用戶默認打開視頻選擇的清晰度，所以必須得在請求前將值改爲 用戶要求的
+            config.parse_headers["cookie"] = re.sub(
+                r"CURRENT_QUALITY=\d+;", "CURRENT_QUALITY=" + str(args.qn) + ";", cookie
+            )
+            # NOTE: 22.10 中旬 獲取player info 的接口 其中 的 fnval 值默認傳 0 的話，會導致拿不到更高清晰度的視頻
+            # 從cookie獲取 的fnval 不能直接使用，实测需要加1，才能和之前的返回格式相同
+            fnval = int((re.findall(r"CURRENT_FNVAL=(\d+)", cookie) or (0,))[0])
+            if fnval:
+                fnval += 1
+
+    _check_parse_headers()
 
     urls = []
     if args.urlfile:
@@ -400,10 +421,12 @@ def main():
             data.cid = cid
 
         player_info_api = spider.gen_player_info_api(
-            data.aid, data.cid, qn=args.qn, _type=args.type
+            data.aid, data.cid, qn=args.qn, _type=args.type, fnval=fnval
         )
 
-        player_urls = spider.parse_player_info_get_video_urls(player_info_api, args.qn)
+        player_urls = spider.parse_player_info_get_video_urls(
+            url, player_info_api, args.qn
+        )
         spider.download_video(url, player_urls, data.title, args.type, args.outputdir)
 
 
